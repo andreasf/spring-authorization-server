@@ -28,6 +28,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Utility methods for the OAuth 2.0 Protocol Endpoints.
@@ -52,6 +53,13 @@ final class OAuth2EndpointUtils {
 			}
 		});
 		return parameters;
+	}
+
+	static MultiValueMap<String, String> getRawParameters(HttpServletRequest request) {
+		return UriComponentsBuilder
+				.fromUriString("?" + request.getQueryString())
+				.build()
+				.getQueryParams();
 	}
 
 	static Map<String, Object> getParametersIfMatchesAuthorizationCodeGrantRequest(HttpServletRequest request, String... exclusions) {

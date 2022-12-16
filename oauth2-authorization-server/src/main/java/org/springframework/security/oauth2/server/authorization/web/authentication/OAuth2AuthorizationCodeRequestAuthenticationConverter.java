@@ -67,6 +67,7 @@ public final class OAuth2AuthorizationCodeRequestAuthenticationConverter impleme
 		}
 
 		MultiValueMap<String, String> parameters = OAuth2EndpointUtils.getParameters(request);
+		MultiValueMap<String, String> rawParameters = OAuth2EndpointUtils.getRawParameters(request);
 
 		// response_type (REQUIRED)
 		String responseType = request.getParameter(OAuth2ParameterNames.RESPONSE_TYPE);
@@ -111,7 +112,7 @@ public final class OAuth2AuthorizationCodeRequestAuthenticationConverter impleme
 		}
 
 		// state (RECOMMENDED)
-		String state = parameters.getFirst(OAuth2ParameterNames.STATE);
+		String state = rawParameters.getFirst(OAuth2ParameterNames.STATE);
 		if (StringUtils.hasText(state) &&
 				parameters.get(OAuth2ParameterNames.STATE).size() != 1) {
 			throwError(OAuth2ErrorCodes.INVALID_REQUEST, OAuth2ParameterNames.STATE);

@@ -127,7 +127,7 @@ public class DefaultAuthorizationServerApplicationTests {
 		String location = response.getResponseHeaderValue("location");
 
 		String state = UriComponentsBuilder.fromHttpUrl(location).build().getQueryParams().getFirst("state");
-		assertThat(state).isEqualTo(REENCODED_STATE);
+		assertThat(state).isEqualTo(STATE);
 
 		assertThat(location).startsWith(REDIRECT_URI);
 		assertThat(location).contains("code=");

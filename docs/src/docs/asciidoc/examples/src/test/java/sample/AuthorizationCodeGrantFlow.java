@@ -94,7 +94,7 @@ public class AuthorizationCodeGrantFlow {
 		parameters.set(OAuth2ParameterNames.STATE, "state");
 
 		MvcResult mvcResult = this.mockMvc.perform(get("/oauth2/authorize")
-				.params(parameters)
+				.queryParams(parameters)
 				.with(user(this.username).roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(header().string("content-type", containsString(MediaType.TEXT_HTML_VALUE)))
@@ -121,13 +121,13 @@ public class AuthorizationCodeGrantFlow {
 		}
 
 		MvcResult mvcResult = this.mockMvc.perform(post("/oauth2/authorize")
-				.params(parameters)
+				.queryParams(parameters)
 				.with(user(this.username).roles("USER")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
 		assertThat(redirectedUrl).isNotNull();
-		assertThat(redirectedUrl).matches("http://127.0.0.1:8080/authorized\\?code=.{15,}&state=state");
+		assertThat(redirectedUrl).matches("http://127.0.0.1:8080/authorized\\?state=state&code=.{15,}");
 
 		String locationHeader = URLDecoder.decode(redirectedUrl, StandardCharsets.UTF_8.name());
 		UriComponents uriComponents = UriComponentsBuilder.fromUriString(locationHeader).build();

@@ -20,7 +20,9 @@ import java.text.MessageFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -59,6 +61,7 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,7 +86,7 @@ import static org.mockito.Mockito.when;
 public class OAuth2AuthorizationEndpointFilterTests {
 	private static final String DEFAULT_AUTHORIZATION_ENDPOINT_URI = "/oauth2/authorize";
 	private static final String AUTHORIZATION_URI = "https://provider.com/oauth2/authorize";
-	private static final String STATE = "previously encoded/state";
+	private static final String STATE = "some%20encoded%2Fstate";
 	private static final String REMOTE_ADDRESS = "remote-address";
 	private AuthenticationManager authenticationManager;
 	private OAuth2AuthorizationEndpointFilter filter;
@@ -299,7 +302,7 @@ public class OAuth2AuthorizationEndpointFilterTests {
 		verifyNoInteractions(filterChain);
 
 		assertThat(response.getStatus()).isEqualTo(HttpStatus.FOUND.value());
-		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?error=errorCode&error_description=errorDescription&error_uri=errorUri%23section&state=previously%20encoded%2Fstate");
+		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?state=some%20encoded%2Fstate&error=errorCode&error_description=errorDescription&error_uri=errorUri%23section");
 		assertThat(SecurityContextHolder.getContext().getAuthentication()).isSameAs(this.principal);
 	}
 
@@ -459,7 +462,7 @@ public class OAuth2AuthorizationEndpointFilterTests {
 		verifyNoInteractions(filterChain);
 
 		assertThat(response.getStatus()).isEqualTo(HttpStatus.FOUND.value());
-		assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost/oauth2/custom-consent?scope=scope1%20scope2&client_id=client-1&state=previously%20encoded/state");
+		assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost/oauth2/custom-consent?state=some%20encoded%2Fstate&scope=scope1%20scope2&client_id=client-1");
 	}
 
 	@Test
@@ -560,7 +563,7 @@ public class OAuth2AuthorizationEndpointFilterTests {
 				.extracting(WebAuthenticationDetails::getRemoteAddress)
 				.isEqualTo(REMOTE_ADDRESS);
 		assertThat(response.getStatus()).isEqualTo(HttpStatus.FOUND.value());
-		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?param=is%2Fencoded&code=code&state=previously%20encoded%2Fstate");
+		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?param=is%2Fencoded&state=some%20encoded%2Fstate&code=code");
 	}
 
 	@Test
@@ -591,7 +594,7 @@ public class OAuth2AuthorizationEndpointFilterTests {
 		verifyNoInteractions(filterChain);
 
 		assertThat(response.getStatus()).isEqualTo(HttpStatus.FOUND.value());
-		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?code=code&state=previously%20encoded%2Fstate");
+		assertThat(response.getRedirectedUrl()).isEqualTo("https://example.com?state=some%20encoded%2Fstate&code=code");
 	}
 
 	private void doFilterWhenAuthorizationRequestInvalidParameterThenError(RegisteredClient registeredClient,
@@ -629,13 +632,22 @@ public class OAuth2AuthorizationEndpointFilterTests {
 		request.setServletPath(requestUri);
 		request.setRemoteAddr(REMOTE_ADDRESS);
 
-		request.addParameter(OAuth2ParameterNames.RESPONSE_TYPE, OAuth2AuthorizationResponseType.CODE.getValue());
-		request.addParameter(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId());
-		request.addParameter(OAuth2ParameterNames.REDIRECT_URI, registeredClient.getRedirectUris().iterator().next());
-		request.addParameter(OAuth2ParameterNames.SCOPE,
+		Map<String, String> parameters = new HashMap<>();
+		parameters.put(OAuth2ParameterNames.RESPONSE_TYPE, OAuth2AuthorizationResponseType.CODE.getValue());
+		parameters.put(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId());
+		parameters.put(OAuth2ParameterNames.REDIRECT_URI, registeredClient.getRedirectUris().iterator().next());
+		parameters.put(OAuth2ParameterNames.SCOPE,
 				StringUtils.collectionToDelimitedString(registeredClient.getScopes(), " "));
-		request.addParameter(OAuth2ParameterNames.STATE, "state");
+		parameters.put(OAuth2ParameterNames.STATE, "state");
+		request.addParameters(parameters);
 
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString("");
+		for (Map.Entry<String, String> entry : parameters.entrySet()) {
+			uriComponentsBuilder.queryParam(entry.getKey(), entry.getValue());
+		}
+		String queryString = uriComponentsBuilder.build().toUriString();
+		assertThat(queryString).startsWith("?");
+		request.setQueryString(queryString.substring(1));
 		return request;
 	}
 

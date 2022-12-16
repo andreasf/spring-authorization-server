@@ -64,7 +64,6 @@ public class CustomConsentAuthorizationServerTests {
 
 	private final String redirectUri = "http://127.0.0.1:8080/login/oauth2/code/messaging-client-oidc?param=is%2Fencoded";
 	public final String state = "some+%20encoded%2Fstate";
-	public final String reencodedState = "some%20%20encoded%2Fstate";
 
 	private final String authorizationRequestUri = UriComponentsBuilder
 			.fromPath("/oauth2/authorize")
@@ -122,7 +121,7 @@ public class CustomConsentAuthorizationServerTests {
 		assertThat(location).startsWith(this.redirectUri);
 		assertThat(location).contains("code=");
 		String state = UriComponentsBuilder.fromHttpUrl(location).build().getQueryParams().getFirst("state");
-		assertThat(state).isEqualTo(this.reencodedState);
+		assertThat(state).isEqualTo(this.state);
 	}
 
 	@Test
@@ -140,7 +139,7 @@ public class CustomConsentAuthorizationServerTests {
 		assertThat(location).startsWith(this.redirectUri);
 		assertThat(location).contains("error=access_denied");
 		String state = UriComponentsBuilder.fromHttpUrl(location).build().getQueryParams().getFirst("state");
-		assertThat(state).isEqualTo(this.reencodedState);
+		assertThat(state).isEqualTo(this.state);
 	}
 
 }

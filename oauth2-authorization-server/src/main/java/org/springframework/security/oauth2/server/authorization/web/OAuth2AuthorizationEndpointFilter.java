@@ -17,9 +17,11 @@ package org.springframework.security.oauth2.server.authorization.web;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -68,8 +70,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriBuilder;
-import org.springframework.web.util.UriBuilderFactory;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * A {@code Filter} for the OAuth 2.0 Authorization Code Grant,
@@ -263,11 +263,11 @@ public final class OAuth2AuthorizationEndpointFilter extends OncePerRequestFilte
 		String state = authorizationConsentAuthentication.getState();
 
 		if (hasConsentUri()) {
-			String redirectUri = UriComponentsBuilder.fromUriString(resolveConsentUri(request))
+			String redirectUri = EncodingAwareUriBuilder.fromUriString(resolveConsentUri(request))
 					.queryParam(OAuth2ParameterNames.SCOPE, String.join(" ", requestedScopes))
 					.queryParam(OAuth2ParameterNames.CLIENT_ID, clientId)
-					.queryParam(OAuth2ParameterNames.STATE, state)
-					.toUriString();
+					.rawQueryParam(OAuth2ParameterNames.STATE, state)
+					.build();
 			this.redirectStrategy.sendRedirect(request, response, redirectUri);
 		} else {
 			if (this.logger.isTraceEnabled()) {
@@ -299,18 +299,13 @@ public final class OAuth2AuthorizationEndpointFilter extends OncePerRequestFilte
 
 		OAuth2AuthorizationCodeRequestAuthenticationToken authorizationCodeRequestAuthentication =
 				(OAuth2AuthorizationCodeRequestAuthenticationToken) authentication;
-		UriBuilder uriBuilder = valuesOnlyEncodingUriBuilderFactory()
-				.uriString(authorizationCodeRequestAuthentication.getRedirectUri())
+		EncodingAwareUriBuilder uriBuilder = EncodingAwareUriBuilder
+				.fromUriString(authorizationCodeRequestAuthentication.getRedirectUri())
 				.queryParam(OAuth2ParameterNames.CODE, authorizationCodeRequestAuthentication.getAuthorizationCode().getTokenValue());
-		String redirectUri;
 		if (StringUtils.hasText(authorizationCodeRequestAuthentication.getState())) {
-			uriBuilder.queryParam(OAuth2ParameterNames.STATE, "{state}");
-			Map<String, String> queryParams = new HashMap<>();
-			queryParams.put(OAuth2ParameterNames.STATE, authorizationCodeRequestAuthentication.getState());
-			redirectUri = uriBuilder.build(queryParams).toString();
-		} else {
-			redirectUri = uriBuilder.build().toString();
+			uriBuilder.rawQueryParam(OAuth2ParameterNames.STATE, authorizationCodeRequestAuthentication.getState());
 		}
+		String redirectUri = uriBuilder.build();
 		this.redirectStrategy.sendRedirect(request, response, redirectUri);
 	}
 
@@ -333,30 +328,20 @@ public final class OAuth2AuthorizationEndpointFilter extends OncePerRequestFilte
 			this.logger.trace("Redirecting to client with error");
 		}
 
-		UriBuilder uriBuilder = valuesOnlyEncodingUriBuilderFactory()
-				.uriString(authorizationCodeRequestAuthentication.getRedirectUri())
+		EncodingAwareUriBuilder uriBuilder = EncodingAwareUriBuilder
+				.fromUriString(authorizationCodeRequestAuthentication.getRedirectUri())
 				.queryParam(OAuth2ParameterNames.ERROR, error.getErrorCode());
-		Map<String, String> queryParams = new HashMap<>();
 		if (StringUtils.hasText(error.getDescription())) {
-			uriBuilder.queryParam(OAuth2ParameterNames.ERROR_DESCRIPTION, "{error_description}");
-			queryParams.put(OAuth2ParameterNames.ERROR_DESCRIPTION, error.getDescription());
+			uriBuilder.queryParam(OAuth2ParameterNames.ERROR_DESCRIPTION, error.getDescription());
 		}
 		if (StringUtils.hasText(error.getUri())) {
-			uriBuilder.queryParam(OAuth2ParameterNames.ERROR_URI, "{error_uri}");
-			queryParams.put(OAuth2ParameterNames.ERROR_URI, error.getUri());
+			uriBuilder.queryParam(OAuth2ParameterNames.ERROR_URI, error.getUri());
 		}
 		if (StringUtils.hasText(authorizationCodeRequestAuthentication.getState())) {
-			uriBuilder.queryParam(OAuth2ParameterNames.STATE, "{state}");
-			queryParams.put(OAuth2ParameterNames.STATE, authorizationCodeRequestAuthentication.getState());
+			uriBuilder.rawQueryParam(OAuth2ParameterNames.STATE, authorizationCodeRequestAuthentication.getState());
 		}
-		String redirectUri = uriBuilder.build(queryParams).toString();
+		String redirectUri = uriBuilder.build();
 		this.redirectStrategy.sendRedirect(request, response, redirectUri);
-	}
-
-	private UriBuilderFactory valuesOnlyEncodingUriBuilderFactory() {
-		DefaultUriBuilderFactory uriBuilderFactory = new DefaultUriBuilderFactory();
-		uriBuilderFactory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.VALUES_ONLY);
-		return uriBuilderFactory;
 	}
 
 	/**
@@ -460,6 +445,52 @@ public final class OAuth2AuthorizationEndpointFilter extends OncePerRequestFilte
 			builder.append("</html>");
 
 			return builder.toString();
+		}
+	}
+
+	static class EncodingAwareUriBuilder {
+		private List<String> queryParams = new ArrayList<>();
+		private List<String> rawQueryParams = new ArrayList<>();
+		private String fromUri;
+
+		private EncodingAwareUriBuilder(String fromUri) {
+			this.fromUri = fromUri;
+		}
+
+		static EncodingAwareUriBuilder fromUriString(String uriString) {
+			return new EncodingAwareUriBuilder(uriString);
+		}
+
+		public EncodingAwareUriBuilder queryParam(String key, String value) {
+			this.queryParams.add(key);
+			this.queryParams.add(value);
+			return this;
+		}
+
+		public EncodingAwareUriBuilder rawQueryParam(String key, String value) {
+			this.rawQueryParams.add(key);
+			this.rawQueryParams.add(value);
+			return this;
+		}
+
+		public String build() {
+			DefaultUriBuilderFactory valuesOnlyUriBuilderFactory = new DefaultUriBuilderFactory();
+			valuesOnlyUriBuilderFactory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.VALUES_ONLY);
+			UriBuilder valuesOnlyUriBuilder = valuesOnlyUriBuilderFactory.uriString(fromUri);
+			Map<String, String> params = new HashMap<>();
+
+			for (int i = 0; i< rawQueryParams.size(); i=i+2) {
+				valuesOnlyUriBuilder.queryParam(rawQueryParams.get(i), rawQueryParams.get(i+1));
+			}
+
+			for (int i = 0; i< queryParams.size(); i=i+2) {
+				String templateVar = "param-" + i;
+				String template = "{" + templateVar + "}";
+				valuesOnlyUriBuilder.queryParam(queryParams.get(i), template);
+				params.put(templateVar, queryParams.get(i+1));
+			}
+
+			return valuesOnlyUriBuilder.build(params).toString();
 		}
 	}
 }

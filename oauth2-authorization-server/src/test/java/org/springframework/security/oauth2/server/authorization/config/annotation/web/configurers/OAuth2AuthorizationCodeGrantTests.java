@@ -163,8 +163,8 @@ public class OAuth2AuthorizationCodeGrantTests {
 	private static final String S256_CODE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 	private static final String S256_CODE_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 	private static final String AUTHORITIES_CLAIM = "authorities";
-	private static final String STATE_URL_UNENCODED = "awrD0fCnEcTUPFgmyy2SU89HZNcnAJ60ZW6l39YI0KyVjmIZ+004pwm9j55li7BoydXYysH4enZMF21Q";
-	private static final String STATE_URL_ENCODED = "awrD0fCnEcTUPFgmyy2SU89HZNcnAJ60ZW6l39YI0KyVjmIZ%2B004pwm9j55li7BoydXYysH4enZMF21Q";
+	private static final String STATE_URL_UNENCODED = "some state";
+	private static final String STATE_URL_ENCODED = "some%20state";
 
 	private static final OAuth2TokenType AUTHORIZATION_CODE_TOKEN_TYPE = new OAuth2TokenType(OAuth2ParameterNames.CODE);
 	private static final OAuth2TokenType STATE_TOKEN_TYPE = new OAuth2TokenType(OAuth2ParameterNames.STATE);
@@ -255,7 +255,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient)))
+				.queryParams(getAuthorizationRequestParameters(registeredClient)))
 				.andExpect(status().isUnauthorized())
 				.andReturn();
 	}
@@ -267,7 +267,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 		RegisteredClient registeredClient = TestRegisteredClients.registeredClient().build();
 
 		this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient)))
+				.queryParams(getAuthorizationRequestParameters(registeredClient)))
 				.andExpect(status().isBadRequest())
 				.andReturn();
 	}
@@ -291,12 +291,12 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		MvcResult mvcResult = this.mvc.perform(get(authorizationEndpointUri)
-				.params(getAuthorizationRequestParameters(registeredClient))
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
 				.with(user("user")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("https://example.com\\?code=.{15,}&state=" + STATE_URL_ENCODED);
+		assertThat(redirectedUrl).matches("https://example.com\\?state=" + STATE_URL_ENCODED + "&code=.{15,}");
 
 		String authorizationCode = extractParameterFromRedirectUri(redirectedUrl, "code");
 		OAuth2Authorization authorization = this.authorizationService.findByToken(authorizationCode, AUTHORIZATION_CODE_TOKEN_TYPE);
@@ -381,14 +381,14 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		MvcResult mvcResult = this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
-				.param(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
-				.param(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
+				.queryParam(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
+				.queryParam(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
 				.with(user("user")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("https://example.com\\?code=.{15,}&state=" + STATE_URL_ENCODED);
+		assertThat(redirectedUrl).matches("https://example.com\\?state=" + STATE_URL_ENCODED + "&code=.{15,}");
 
 		String authorizationCode = extractParameterFromRedirectUri(redirectedUrl, "code");
 		OAuth2Authorization authorizationCodeAuthorization = this.authorizationService.findByToken(authorizationCode, AUTHORIZATION_CODE_TOKEN_TYPE);
@@ -425,14 +425,14 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		MvcResult mvcResult = this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
-				.param(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
-				.param(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
+				.queryParam(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
+				.queryParam(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
 				.with(user("user")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("https://example.com\\?code=.{15,}&state=" + STATE_URL_ENCODED);
+		assertThat(redirectedUrl).matches("https://example.com\\?state=" + STATE_URL_ENCODED + "&code=.{15,}");
 
 		String authorizationCode = extractParameterFromRedirectUri(redirectedUrl, "code");
 		OAuth2Authorization authorizationCodeAuthorization = this.authorizationService.findByToken(authorizationCode, AUTHORIZATION_CODE_TOKEN_TYPE);
@@ -479,7 +479,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		String consentPage = this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
 				.with(user("user")))
 				.andExpect(status().is2xxSuccessful())
 				.andReturn()
@@ -528,7 +528,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 				.andReturn();
 
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("https://example.com\\?code=.{15,}&state=" + STATE_URL_ENCODED);
+		assertThat(redirectedUrl).matches("https://example.com\\?state=" + STATE_URL_ENCODED + "&code=.{15,}");
 
 		String authorizationCode = extractParameterFromRedirectUri(redirectedUrl, "code");
 		OAuth2Authorization authorizationCodeAuthorization = this.authorizationService.findByToken(authorizationCode, AUTHORIZATION_CODE_TOKEN_TYPE);
@@ -562,12 +562,12 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		MvcResult mvcResult = this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
 				.with(user("user")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("http://localhost/oauth2/consent\\?scope=.+&client_id=.+&state=.+");
+		assertThat(redirectedUrl).matches("http://localhost/oauth2/consent\\?state=.+&scope=.+&client_id=.+");
 
 		String locationHeader = URLDecoder.decode(redirectedUrl, StandardCharsets.UTF_8.name());
 		UriComponents uriComponents = UriComponentsBuilder.fromUriString(locationHeader).build();
@@ -615,7 +615,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 				.andReturn();
 
 		String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-		assertThat(redirectedUrl).matches("https://example.com\\?code=.{15,}&state=" + STATE_URL_ENCODED);
+		assertThat(redirectedUrl).matches("https://example.com\\?state=" + STATE_URL_ENCODED + "&code=.{15,}");
 
 		String authorizationCode = extractParameterFromRedirectUri(redirectedUrl, "code");
 		OAuth2Authorization authorizationCodeAuthorization = this.authorizationService.findByToken(authorizationCode, AUTHORIZATION_CODE_TOKEN_TYPE);
@@ -659,7 +659,7 @@ public class OAuth2AuthorizationCodeGrantTests {
 		when(authorizationRequestAuthenticationProvider.authenticate(any())).thenReturn(authorizationCodeRequestAuthenticationResult);
 
 		this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
 				.with(user("user")))
 				.andExpect(status().isOk());
 
@@ -697,9 +697,9 @@ public class OAuth2AuthorizationCodeGrantTests {
 		this.registeredClientRepository.save(registeredClient);
 
 		MvcResult mvcResult = this.mvc.perform(get(DEFAULT_AUTHORIZATION_ENDPOINT_URI)
-				.params(getAuthorizationRequestParameters(registeredClient))
-				.param(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
-				.param(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+				.queryParams(getAuthorizationRequestParameters(registeredClient))
+				.queryParam(PkceParameterNames.CODE_CHALLENGE, S256_CODE_CHALLENGE)
+				.queryParam(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
 				.with(user("user")))
 				.andExpect(status().is3xxRedirection())
 				.andReturn();
